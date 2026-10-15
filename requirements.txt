@@ -1,0 +1,7 @@
+# Python 3.10 or newer
+# GPU: install a CUDA build of torch and torchvision first (https://pytorch.org/get-started/locally/)
+torch
+torchvision
+spandrel
+numpy
+opencv-python-headless

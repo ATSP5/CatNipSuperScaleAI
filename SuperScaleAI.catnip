@@ -1,0 +1,871 @@
+{
+  "nodes": [
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022One ready-made super-resolution model: where to get it and how much it enlarges.\u0022\u0022\u0022\n\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass ModelSpec:\n\tname: str\n\tscale: int\n\turl: str\n\tsha256: str\n\n\t@property\n\tdef file_name(self) -\u003E str:\n\t\treturn self.url.rsplit(\u0022/\u0022, 1)[-1]\n",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 0,
+        "documentationText": "",
+        "documentationFile": "ModelSpec.md",
+        "nodeCathegory": 3,
+        "id": 190,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 0,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": false,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [],
+          "description": "ModelSpec",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Model Spec",
+        "targetPath": ""
+      },
+      "locationX": 60,
+      "locationY": 60
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022Every path and setting of SuperScaleAI.\n\nFolders are resolved against the project folder - the one holding\nSuperScaleAI.catnip - so the same code works in a venv on C:, from a src/\nfolder of generated sources, and in a Docker run, where the project sits in /app.\n\nDefaults live here; the user changes them in the main block\u0027s Initialiser section\n(Refresh, edit, Apply), which passes them to this config.\n\u0022\u0022\u0022\n\nimport os\nfrom dataclasses import dataclass, field\nfrom pathlib import Path\nfrom typing import Tuple\n\nfrom ModelSpec import ModelSpec\n\n\ndef _project_dir() -\u003E Path:\n\t\u0022\u0022\u0022The folder with the .catnip: this file\u0027s own, or the one above it.\u0022\u0022\u0022\n\there = Path(os.path.dirname(os.path.abspath(__file__)))\n\tif not any(here.glob(\u0022*.catnip\u0022)) and here.parent != here and any(here.parent.glob(\u0022*.catnip\u0022)):\n\t\treturn here.parent\n\treturn here\n\n\n# Real-ESRGAN (Xintao Wang et al., Tencent ARC): the authors\u0027 general models\n# for real photos - they remove noise, blur and JPEG artefacts while enlarging.\n# x2plus works on a quarter of the pixels internally, so it is ~4x faster and\n# is used whenever 2x per side is enough. Any model spandrel can load\n# (ESRGAN, SwinIR, HAT, DAT ...) can be listed here instead.\nREAL_ESRGAN_MODELS = (\n\tModelSpec(\n\t\tname=\u0022Real-ESRGAN x2plus\u0022,\n\t\tscale=2,\n\t\turl=\u0022https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth\u0022,\n\t\tsha256=\u002249fafd45f8fd7aa8d31ab2a22d14d91b536c34494a5cfe31eb5d89c2fa266abb\u0022,\n\t),\n\tModelSpec(\n\t\tname=\u0022Real-ESRGAN x4plus\u0022,\n\t\tscale=4,\n\t\turl=\u0022https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth\u0022,\n\t\tsha256=\u00224fa0d38905f75ac06eb49a7951b426670021be3018265fd191d2125df9d682f1\u0022,\n\t),\n)\n\n\n@dataclass\nclass SuperScaleConfig:\n\tproject_dir: Path = field(default_factory=_project_dir)\n\n\tinputs_folder: str = \u0022Inputs\u0022\n\toutputs_folder: str = \u0022Outputs\u0022\n\tmodels_folder: str = \u0022models\u0022\n\n\t# How much bigger the result is, from 1 (same size, only cleaner) to 10.\n\tscale_factor: float = 2.0\n\tmin_factor: float = 1.0\n\tmax_factor: float = 10.0\n\t# \u0022pixels\u0022: the factor multiplies the pixel count - 2 means twice as many\n\t#           pixels, so each side grows by sqrt(2) = 1.41.\n\t# \u0022side\u0022:   the factor multiplies width and height - 2 means 2x wider and\n\t#           2x taller, i.e. 4x the pixels.\n\tfactor_mode: str = \u0022pixels\u0022\n\n\tmodels: Tuple[ModelSpec, ...] = REAL_ESRGAN_MODELS\n\n\t# The image goes through the network in tiles, so memory use does not grow\n\t# with the photo: 4 GB of GPU or a few GB of RAM is enough for any size.\n\ttile_size: int = 256\n\ttile_overlap: int = 16\n\n\toutput_extension: str = \u0022.png\u0022\n\tjpeg_quality: int = 95\n\timage_extensions: Tuple[str, ...] = (\u0022.jpg\u0022, \u0022.jpeg\u0022, \u0022.png\u0022, \u0022.bmp\u0022, \u0022.tif\u0022, \u0022.tiff\u0022, \u0022.webp\u0022)\n\n\tdef __post_init__(self) -\u003E None:\n\t\tif not self.min_factor \u003C= self.scale_factor \u003C= self.max_factor:\n\t\t\traise ValueError(\u0022scale_factor %g jest poza zakresem %g-%g.\u0022 % (\n\t\t\t\tself.scale_factor, self.min_factor, self.max_factor))\n\t\tif self.factor_mode not in (\u0022pixels\u0022, \u0022side\u0022):\n\t\t\traise ValueError(\u0022factor_mode musi byc \u0027pixels\u0027 albo \u0027side\u0027, jest \u0027%s\u0027.\u0022 % self.factor_mode)\n\t\tif not self.output_extension.startswith(\u0022.\u0022):\n\t\t\tself.output_extension = \u0022.\u0022 \u002B self.output_extension\n\t\tself.project_dir = Path(self.project_dir)\n\n\t@property\n\tdef inputs_dir(self) -\u003E Path:\n\t\treturn self.project_dir / self.inputs_folder\n\n\t@property\n\tdef outputs_dir(self) -\u003E Path:\n\t\treturn self.project_dir / self.outputs_folder\n\n\t@property\n\tdef models_dir(self) -\u003E Path:\n\t\treturn self.project_dir / self.models_folder\n\n\tdef model_path(self, spec: ModelSpec) -\u003E Path:\n\t\treturn self.models_dir / spec.file_name\n\n\tdef model_for(self, side_scale: float) -\u003E ModelSpec:\n\t\t\u0022\u0022\u0022The smallest model that reaches side_scale in one pass, else the largest.\u0022\u0022\u0022\n\t\tby_scale = sorted(self.models, key=lambda m: m.scale)\n\t\tfor spec in by_scale:\n\t\t\tif spec.scale \u003E= side_scale - 1e-9:\n\t\t\t\treturn spec\n\t\treturn by_scale[-1]\n\n\tdef is_image(self, path: Path) -\u003E bool:\n\t\treturn path.suffix.lower() in self.image_extensions\n\n\tdef ensure_dirs(self) -\u003E \u0022SuperScaleConfig\u0022:\n\t\tfor folder in (self.inputs_dir, self.outputs_dir, self.models_dir):\n\t\t\tfolder.mkdir(parents=True, exist_ok=True)\n\t\treturn self\n",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "SuperScaleConfig.md",
+        "nodeCathegory": 3,
+        "id": 191,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 244,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 244,
+              "title": "config",
+              "connecttionType": 0
+            }
+          ],
+          "description": "SuperScaleConfig",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Config",
+        "targetPath": ""
+      },
+      "locationX": 60,
+      "locationY": 262
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022What one photo turns into: its size now, the size it must reach, and which\nmodel gets it there in how many passes.\u0022\u0022\u0022\n\nimport math\nfrom dataclasses import dataclass\n\n\n@dataclass(frozen=True)\nclass ScalePlan:\n\twidth: int\n\theight: int\n\tfactor: float\n\tside_scale: float\n\ttarget_width: int\n\ttarget_height: int\n\tmodel_scale: int\n\tpasses: int\n\n\t@staticmethod\n\tdef side_scale_for(factor: float, factor_mode: str) -\u003E float:\n\t\tif factor_mode == \u0022pixels\u0022:\n\t\t\treturn math.sqrt(factor)\n\t\tif factor_mode == \u0022side\u0022:\n\t\t\treturn float(factor)\n\t\traise ValueError(\u0022factor_mode musi byc \u0027pixels\u0027 albo \u0027side\u0027, jest \u0027%s\u0027\u0022 % factor_mode)\n\n\t@classmethod\n\tdef build(cls, width: int, height: int, factor: float, factor_mode: str, model_scale: int) -\u003E \u0022ScalePlan\u0022:\n\t\tside_scale = cls.side_scale_for(factor, factor_mode)\n\t\t# Always at least one pass: even at factor 1 the network cleans the\n\t\t# photo up, and the result is then brought back to the original size.\n\t\tpasses = max(1, math.ceil(math.log(side_scale, model_scale) - 1e-9)) if side_scale \u003E 1 else 1\n\t\treturn cls(\n\t\t\twidth=width,\n\t\t\theight=height,\n\t\t\tfactor=factor,\n\t\t\tside_scale=side_scale,\n\t\t\ttarget_width=max(1, round(width * side_scale)),\n\t\t\ttarget_height=max(1, round(height * side_scale)),\n\t\t\tmodel_scale=model_scale,\n\t\t\tpasses=passes,\n\t\t)\n\n\t@property\n\tdef pixel_gain(self) -\u003E float:\n\t\treturn (self.target_width * self.target_height) / float(self.width * self.height)\n\n\tdef describe(self) -\u003E str:\n\t\treturn \u0022%dx%d -\u003E %dx%d  (bok x%.2f, pikseli x%.2f; model x%d, przejscia: %d)\u0022 % (\n\t\t\tself.width, self.height, self.target_width, self.target_height,\n\t\t\tself.side_scale, self.pixel_gain, self.model_scale, self.passes)\n",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "ScalePlan.md",
+        "nodeCathegory": 3,
+        "id": 192,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 245,
+            "title": "build",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 245,
+              "title": "build",
+              "connecttionType": 0
+            }
+          ],
+          "description": "ScalePlan",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Scale Plan",
+        "targetPath": ""
+      },
+      "locationX": 60,
+      "locationY": 480
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022Reads, writes and shows images with OpenCV, including paths with Polish letters.\n\ncv2.imread / cv2.imwrite cannot open \u0022C:\\\\Zdjecia\\\\Babcia_\u0141\u00F3d\u017A.jpg\u0022 on\nWindows - they silently return None. Going through numpy bytes avoids that.\n\u0022\u0022\u0022\n\nfrom pathlib import Path\n\nimport cv2\nimport numpy as np\n\n\nclass ImageFiles:\n\tdef __init__(self, jpeg_quality: int = 95):\n\t\tself.jpeg_quality = jpeg_quality\n\n\tdef read(self, path: Path) -\u003E np.ndarray:\n\t\t\u0022\u0022\u0022The image as a BGR uint8 array, EXIF rotation applied.\u0022\u0022\u0022\n\t\tdata = np.fromfile(str(path), dtype=np.uint8)\n\t\timage = cv2.imdecode(data, cv2.IMREAD_COLOR)\n\t\tif image is None:\n\t\t\traise ValueError(\u0022Nie da sie odczytac obrazu: %s\u0022 % path)\n\t\treturn image\n\n\tdef write(self, image: np.ndarray, path: Path) -\u003E Path:\n\t\t\u0022\u0022\u0022Saves a BGR uint8 array; the format follows the file extension.\u0022\u0022\u0022\n\t\tpath = Path(path)\n\t\tpath.parent.mkdir(parents=True, exist_ok=True)\n\t\tparams = []\n\t\tif path.suffix.lower() in (\u0022.jpg\u0022, \u0022.jpeg\u0022):\n\t\t\tparams = [cv2.IMWRITE_JPEG_QUALITY, self.jpeg_quality]\n\t\tok, encoded = cv2.imencode(path.suffix, image, params)\n\t\tif not ok:\n\t\t\traise ValueError(\u0022Nie da sie zapisac obrazu jako %s\u0022 % path.suffix)\n\t\tencoded.tofile(str(path))\n\t\treturn path\n\n\tdef show(self, title: str, image: np.ndarray, max_width: int = 1600) -\u003E None:\n\t\t\u0022\u0022\u0022Puts the image in CatNip\u0027s Output tab.\n\n\t\tCatNip\u0027s runner captures cv2.imshow, in a venv and in Docker alike. A\n\t\tplain terminal with headless OpenCV has no window, so there it is skipped.\n\t\t\u0022\u0022\u0022\n\t\tif image.shape[1] \u003E max_width:\n\t\t\tscale = max_width / float(image.shape[1])\n\t\t\timage = cv2.resize(image, (max_width, int(image.shape[0] * scale)), interpolation=cv2.INTER_AREA)\n\t\ttry:\n\t\t\tcv2.imshow(title, image)\n\t\texcept cv2.error:\n\t\t\tpass\n\n\tdef compare_detail(self, title: str, original: np.ndarray, result: np.ndarray, crop: int = 640) -\u003E None:\n\t\t\u0022\u0022\u0022A 1:1 crop from the middle: plain bicubic enlargement next to the AI.\n\n\t\tThe whole photo shrunk to fit the Output tab hides exactly the detail\n\t\tthe network adds, so the comparison is made at full size.\n\t\t\u0022\u0022\u0022\n\t\theight, width = result.shape[:2]\n\t\tplain = cv2.resize(original, (width, height), interpolation=cv2.INTER_CUBIC)\n\t\tsize_w, size_h = min(crop, width), min(crop, height)\n\t\tx, y = (width - size_w) // 2, (height - size_h) // 2\n\t\tgap = np.full((size_h, 8, 3), 255, dtype=np.uint8)\n\t\tpair = np.hstack([plain[y:y \u002B size_h, x:x \u002B size_w], gap, result[y:y \u002B size_h, x:x \u002B size_w]])\n\t\tself.show(title, pair, max_width=2 * crop \u002B 8)\n",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 3,
+        "documentationText": "",
+        "documentationFile": "ImageFiles.md",
+        "nodeCathegory": 3,
+        "id": 193,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 3,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 246,
+            "title": "read",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 246,
+              "title": "read",
+              "connecttionType": 0
+            },
+            {
+              "id": 247,
+              "title": "write",
+              "connecttionType": 0
+            },
+            {
+              "id": 248,
+              "title": "show",
+              "connecttionType": 0
+            }
+          ],
+          "description": "ImageFiles",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Image Files",
+        "targetPath": ""
+      },
+      "locationX": 60,
+      "locationY": 680
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022Downloads the upscaling model into models/ once, and checks it is intact.\r\n\r\nOnly the standard library is used. A broken transfer resumes where it stopped\r\n(HTTP Range), data goes to *.part until every byte is there, and the finished\r\nfile must match the SHA-256 in the config before it is used.\r\n\u0022\u0022\u0022\r\n\r\nimport hashlib\r\nimport http.client\r\nimport time\r\nimport urllib.error\r\nimport urllib.request\r\nfrom pathlib import Path\r\n\r\nfrom ModelSpec import ModelSpec\r\nfrom SuperScaleConfig import SuperScaleConfig\r\n\r\n\r\nclass ModelDownloader:\r\n\tCHUNK = 1024 * 1024\r\n\tATTEMPTS = 20\r\n\tUSER_AGENT = \u0022SuperScaleAI-CatNip/1.0\u0022\r\n\r\n\tdef __init__(self, config: SuperScaleConfig):\r\n\t\tself.config = config\r\n\r\n\tdef ensure_model(self, spec: ModelSpec) -\u003E Path:\r\n\t\t\u0022\u0022\u0022The model file, downloaded first if it is missing or damaged.\u0022\u0022\u0022\r\n\t\ttarget = self.config.model_path(spec)\r\n\t\tif target.is_file():\r\n\t\t\tif self.verify(target, spec.sha256):\r\n\t\t\t\treturn target\r\n\t\t\tprint(\u0022[Model] %s jest uszkodzony - pobieram od nowa\u0022 % target.name)\r\n\t\t\ttarget.unlink()\r\n\t\tself.fetch_file(spec.url, target)\r\n\t\tif not self.verify(target, spec.sha256):\r\n\t\t\ttarget.unlink()\r\n\t\t\traise IOError(\u0022Pobrany plik %s ma niewlasciwa sume SHA-256.\u0022 % target.name)\r\n\t\treturn target\r\n\r\n\tdef verify(self, path: Path, sha256: str) -\u003E bool:\r\n\t\texpected = (sha256 or \u0022\u0022).lower()\r\n\t\tif not expected:\r\n\t\t\treturn True\r\n\t\tdigest = hashlib.sha256()\r\n\t\twith open(path, \u0022rb\u0022) as source:\r\n\t\t\tfor block in iter(lambda: source.read(self.CHUNK), b\u0022\u0022):\r\n\t\t\t\tdigest.update(block)\r\n\t\treturn digest.hexdigest() == expected\r\n\r\n\tdef fetch_file(self, url: str, target: Path) -\u003E Path:\r\n\t\ttarget.parent.mkdir(parents=True, exist_ok=True)\r\n\t\tpart = target.with_name(target.name \u002B \u0022.part\u0022)\r\n\t\tfor attempt in range(1, self.ATTEMPTS \u002B 1):\r\n\t\t\thave = part.stat().st_size if part.is_file() else 0\r\n\t\t\trequest = urllib.request.Request(url, headers={\u0022User-Agent\u0022: self.USER_AGENT})\r\n\t\t\tif have:\r\n\t\t\t\trequest.add_header(\u0022Range\u0022, \u0022bytes=%d-\u0022 % have)\r\n\t\t\ttry:\r\n\t\t\t\twith urllib.request.urlopen(request, timeout=60) as response:\r\n\t\t\t\t\tresumed = have \u003E 0 and response.status == 206\r\n\t\t\t\t\tif not resumed:\r\n\t\t\t\t\t\thave = 0\r\n\t\t\t\t\ttotal = have \u002B int(response.headers.get(\u0022Content-Length\u0022) or 0)\r\n\t\t\t\t\tif resumed:\r\n\t\t\t\t\t\tprint(\u0022[Model] Wznawiam %s od %s\u0022 % (target.name, self.size(have)))\r\n\t\t\t\t\telse:\r\n\t\t\t\t\t\tprint(\u0022[Model] Pobieram %s  (%s)\u0022 % (url, self.size(total) if total else \u0022rozmiar nieznany\u0022))\r\n\t\t\t\t\tself.stream(response, part, have, total)\r\n\t\t\texcept urllib.error.HTTPError as error:\r\n\t\t\t\tif error.code != 416:\r\n\t\t\t\t\traise\r\n\t\t\t\tpart.unlink()\r\n\t\t\t\tcontinue\r\n\t\t\texcept (OSError, http.client.HTTPException) as error:\r\n\t\t\t\tprint(\u0022[Model] Polaczenie przerwane (%s), proba %d/%d\u0022 % (error, attempt, self.ATTEMPTS))\r\n\t\t\t\ttime.sleep(min(2 * attempt, 10))\r\n\t\t\t\tcontinue\r\n\r\n\t\t\tif total and part.stat().st_size != total:\r\n\t\t\t\tcontinue\r\n\t\t\tpart.replace(target)\r\n\t\t\tprint(\u0022[Model] -\u003E %s\u0022 % target)\r\n\t\t\treturn target\r\n\t\traise IOError(\u0022Nie udalo sie pobrac %s po %d probach.\u0022 % (target.name, self.ATTEMPTS))\r\n\r\n\tdef stream(self, response, part: Path, done: int, total: int) -\u003E None:\r\n\t\tlast_print, started, start_bytes = 0.0, time.time(), done\r\n\t\twith open(part, \u0022ab\u0022 if done else \u0022wb\u0022) as out:\r\n\t\t\tfor chunk in iter(lambda: response.read(self.CHUNK), b\u0022\u0022):\r\n\t\t\t\tout.write(chunk)\r\n\t\t\t\tdone \u002B= len(chunk)\r\n\t\t\t\tnow = time.time()\r\n\t\t\t\tif now - last_print \u003E= 2 or (total and done == total):\r\n\t\t\t\t\tlast_print = now\r\n\t\t\t\t\tspeed = (done - start_bytes) / max(now - started, 1e-6)\r\n\t\t\t\t\tshare = \u0022 %5.1f%%\u0022 % (100.0 * done / total) if total else \u0022\u0022\r\n\t\t\t\t\tprint(\u0022[Model]%s  %s  %s/s\u0022 % (share, self.size(done), self.size(speed)), flush=True)\r\n\r\n\t@staticmethod\r\n\tdef size(n: float) -\u003E str:\r\n\t\tfor unit in (\u0022B\u0022, \u0022KB\u0022, \u0022MB\u0022):\r\n\t\t\tif n \u003C 1024:\r\n\t\t\t\treturn \u0022%.1f %s\u0022 % (n, unit)\r\n\t\t\tn /= 1024.0\r\n\t\treturn \u0022%.1f GB\u0022 % n\r\n",
+        "codeFile": "",
+        "maxInputNumber": 1,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "ModelDownloader.md",
+        "nodeCathegory": 3,
+        "id": 194,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 1,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": true,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 249,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [
+            {
+              "id": 249,
+              "title": "config",
+              "connecttionType": 0
+            }
+          ],
+          "selectedOutputConnectionSettings": {
+            "id": 250,
+            "title": "ensure_model",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 250,
+              "title": "ensure_model",
+              "connecttionType": 0
+            }
+          ],
+          "description": "ModelDownloader",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Model Downloader",
+        "targetPath": ""
+      },
+      "locationX": 380,
+      "locationY": 120
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022Runs the super-resolution network over a photo, locally, tile by tile.\r\n\r\nThe model (Real-ESRGAN x4plus by default) is loaded with spandrel, the\r\nloader chaiNNer uses, so any ESRGAN / SwinIR / HAT / DAT checkpoint works\r\nwithout writing its architecture by hand.\r\n\r\nTiles overlap by a few pixels and only their centres are kept, so the seams\r\ndo not show; memory use depends on the tile size, not on the photo.\r\n\u0022\u0022\u0022\r\n\r\nimport time\r\nfrom pathlib import Path\r\n\r\nimport numpy as np\r\n\r\nfrom SuperScaleConfig import SuperScaleConfig\r\n\r\n\r\nclass RealESRGANUpscaler:\r\n\tdef __init__(self, config: SuperScaleConfig, model_path: Path):\r\n\t\tself.config = config\r\n\t\tself.model_path = model_path\r\n\t\tself._model = None\r\n\t\tself._device = None\r\n\r\n\t@property\r\n\tdef scale(self) -\u003E int:\r\n\t\treturn int(self.load().scale)\r\n\r\n\tdef load(self):\r\n\t\tif self._model is not None:\r\n\t\t\treturn self._model\r\n\t\timport torch\r\n\t\tfrom spandrel import ImageModelDescriptor, ModelLoader\r\n\r\n\t\tpath = self.model_path\r\n\t\tmodel = ModelLoader().load_from_file(str(path))\r\n\t\tif not isinstance(model, ImageModelDescriptor):\r\n\t\t\traise TypeError(\u0022%s nie jest modelem obraz -\u003E obraz\u0022 % path.name)\r\n\t\tself._device = self.pick_device(torch)\r\n\t\tmodel.to(self._device).eval()\r\n\t\tprint(\u0022[Model] %s (%s, x%d) na %s\u0022 % (path.name, model.architecture.name, model.scale, self._device))\r\n\t\tself._model = model\r\n\t\treturn model\r\n\r\n\tdef upscale(self, image_bgr: np.ndarray) -\u003E np.ndarray:\r\n\t\t\u0022\u0022\u0022One pass of the network: BGR uint8 in, BGR uint8 \u0060scale\u0060 times larger out.\u0022\u0022\u0022\r\n\t\timport torch\r\n\r\n\t\tmodel = self.load()\r\n\t\ttry:\r\n\t\t\treturn self._run_tiles(torch, model, image_bgr)\r\n\t\texcept RuntimeError as error:\r\n\t\t\t# Some cards still run out of memory; the CPU always finishes.\r\n\t\t\tif \u0022out of memory\u0022 not in str(error).lower() or self._device.type != \u0022cuda\u0022:\r\n\t\t\t\traise\r\n\t\t\tprint(\u0022[Model] Za malo pamieci GPU - licze dalej na CPU\u0022)\r\n\t\t\ttorch.cuda.empty_cache()\r\n\t\t\tself._device = torch.device(\u0022cpu\u0022)\r\n\t\t\tmodel.to(self._device)\r\n\t\t\treturn self._run_tiles(torch, model, image_bgr)\r\n\r\n\tdef _run_tiles(self, torch, model, image_bgr: np.ndarray) -\u003E np.ndarray:\r\n\t\tscale = int(model.scale)\r\n\t\ttile, pad = self.config.tile_size, self.config.tile_overlap\r\n\t\theight, width = image_bgr.shape[:2]\r\n\r\n\t\trgb = np.ascontiguousarray(image_bgr[:, :, ::-1])\r\n\t\tsource = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0).float().div_(255.0)\r\n\t\tresult = np.empty((height * scale, width * scale, 3), dtype=np.uint8)\r\n\r\n\t\tboxes = [(x, y) for y in range(0, height, tile) for x in range(0, width, tile)]\r\n\t\tstarted, last_print = time.time(), 0.0\r\n\t\twith torch.inference_mode():\r\n\t\t\tfor done, (x, y) in enumerate(boxes, 1):\r\n\t\t\t\tx1, y1 = min(x \u002B tile, width), min(y \u002B tile, height)\r\n\t\t\t\t# The tile plus a margin of context on every side that has any.\r\n\t\t\t\tpx, py = max(x - pad, 0), max(y - pad, 0)\r\n\t\t\t\tpx1, py1 = min(x1 \u002B pad, width), min(y1 \u002B pad, height)\r\n\r\n\t\t\t\tchunk = source[:, :, py:py1, px:px1].to(self._device)\r\n\t\t\t\tout = model(chunk).clamp_(0, 1).mul_(255.0).round_().byte()\r\n\t\t\t\tout = out[0].permute(1, 2, 0).cpu().numpy()\r\n\r\n\t\t\t\tox, oy = (x - px) * scale, (y - py) * scale\r\n\t\t\t\tresult[y * scale:y1 * scale, x * scale:x1 * scale] = \\\r\n\t\t\t\t\tout[oy:oy \u002B (y1 - y) * scale, ox:ox \u002B (x1 - x) * scale]\r\n\r\n\t\t\t\tnow = time.time()\r\n\t\t\t\tif now - last_print \u003E= 5 or done == len(boxes):\r\n\t\t\t\t\tlast_print = now\r\n\t\t\t\t\tprint(\u0022[Model]   kafelki %d/%d  (%.0f s)\u0022 % (done, len(boxes), now - started), flush=True)\r\n\r\n\t\treturn np.ascontiguousarray(result[:, :, ::-1])\r\n\r\n\t@staticmethod\r\n\tdef pick_device(torch):\r\n\t\t\u0022\u0022\u0022CUDA only if this PyTorch build has kernels for the card, else CPU.\r\n\r\n\t\tNew PyTorch wheels dropped older cards (a GTX 1050 Ti is sm_61); on such\r\n\t\ta card CUDA looks available but every kernel launch fails.\r\n\t\t\u0022\u0022\u0022\r\n\t\tif not torch.cuda.is_available():\r\n\t\t\treturn torch.device(\u0022cpu\u0022)\r\n\t\tmajor, minor = torch.cuda.get_device_capability(0)\r\n\t\tname = torch.cuda.get_device_name(0)\r\n\t\tif \u0022sm_%d%d\u0022 % (major, minor) not in torch.cuda.get_arch_list():\r\n\t\t\tprint(\u0022[Model] %s (sm_%d%d) nie jest wspierany przez ta wersje PyTorch - licze na CPU\u0022 % (name, major, minor))\r\n\t\t\treturn torch.device(\u0022cpu\u0022)\r\n\t\tprint(\u0022[Model] GPU: %s\u0022 % name)\r\n\t\treturn torch.device(\u0022cuda\u0022)\r\n",
+        "codeFile": "",
+        "maxInputNumber": 1,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "RealESRGANUpscaler.md",
+        "nodeCathegory": 3,
+        "id": 195,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 1,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": true,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 251,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [
+            {
+              "id": 251,
+              "title": "config",
+              "connecttionType": 0
+            }
+          ],
+          "selectedOutputConnectionSettings": {
+            "id": 252,
+            "title": "upscale",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 252,
+              "title": "upscale",
+              "connecttionType": 0
+            }
+          ],
+          "description": "RealESRGANUpscaler",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Real-ESRGAN Upscaler",
+        "targetPath": ""
+      },
+      "locationX": 380,
+      "locationY": 340
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022Brings one photo to the requested size with the network\u0027s help.\n\nThe model is picked per factor: x2 when 2x per side is enough (it is ~4x\nfaster), x4 above that, and several x4 passes only beyond 4x per side. The\nrequested size is rarely exactly what the network produces, so the last pass\nis brought to the target with a high-quality resample (INTER_AREA going down,\nLanczos going up). Going down from a cleaner, larger image keeps the network\u0027s\ndetail - which is also why factor 1 still improves a photo.\n\u0022\u0022\u0022\n\nimport time\nfrom typing import Dict, Tuple\n\nimport cv2\nimport numpy as np\n\nfrom ModelDownloader import ModelDownloader\nfrom ModelSpec import ModelSpec\nfrom RealESRGANUpscaler import RealESRGANUpscaler\nfrom ScalePlan import ScalePlan\nfrom SuperScaleConfig import SuperScaleConfig\n\n\nclass SuperScaler:\n\tdef __init__(self, config: SuperScaleConfig, downloader: ModelDownloader):\n\t\tself.config = config\n\t\tself.downloader = downloader\n\t\tself._upscalers: Dict[str, RealESRGANUpscaler] = {}\n\n\tdef plan(self, image_bgr: np.ndarray, factor: float) -\u003E Tuple[ScalePlan, ModelSpec]:\n\t\theight, width = image_bgr.shape[:2]\n\t\tside_scale = ScalePlan.side_scale_for(factor, self.config.factor_mode)\n\t\tspec = self.config.model_for(side_scale)\n\t\treturn ScalePlan.build(width, height, factor, self.config.factor_mode, spec.scale), spec\n\n\tdef scale(self, image_bgr: np.ndarray, factor: float) -\u003E Tuple[np.ndarray, ScalePlan]:\n\t\tplan, spec = self.plan(image_bgr, factor)\n\t\tprint(\u0022[Skala] %s\u0022 % plan.describe())\n\t\tupscaler = self.upscaler_for(spec)\n\n\t\tstarted = time.time()\n\t\tcurrent = image_bgr\n\t\tfor number in range(1, plan.passes \u002B 1):\n\t\t\tprint(\u0022[Skala] Przejscie %d/%d (%s): %dx%d\u0022 % (number, plan.passes, spec.name, current.shape[1], current.shape[0]))\n\t\t\tcurrent = upscaler.upscale(current)\n\n\t\tresult = self.resize(current, plan.target_width, plan.target_height)\n\t\tprint(\u0022[Skala] Gotowe w %.1f s\u0022 % (time.time() - started))\n\t\treturn result, plan\n\n\tdef upscaler_for(self, spec: ModelSpec) -\u003E RealESRGANUpscaler:\n\t\tif spec.name not in self._upscalers:\n\t\t\tpath = self.downloader.ensure_model(spec)\n\t\t\tself._upscalers[spec.name] = RealESRGANUpscaler(self.config, path)\n\t\treturn self._upscalers[spec.name]\n\n\t@staticmethod\n\tdef resize(image: np.ndarray, width: int, height: int) -\u003E np.ndarray:\n\t\tif image.shape[1] == width and image.shape[0] == height:\n\t\t\treturn image\n\t\tshrinking = width \u003C image.shape[1]\n\t\tinterpolation = cv2.INTER_AREA if shrinking else cv2.INTER_LANCZOS4\n\t\treturn cv2.resize(image, (width, height), interpolation=interpolation)\n",
+        "codeFile": "",
+        "maxInputNumber": 4,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "SuperScaler.md",
+        "nodeCathegory": 3,
+        "id": 196,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 4,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": true,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 253,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [
+            {
+              "id": 253,
+              "title": "config",
+              "connecttionType": 0
+            },
+            {
+              "id": 254,
+              "title": "ensure_model",
+              "connecttionType": 0
+            },
+            {
+              "id": 255,
+              "title": "upscale",
+              "connecttionType": 0
+            },
+            {
+              "id": 256,
+              "title": "build",
+              "connecttionType": 0
+            }
+          ],
+          "selectedOutputConnectionSettings": {
+            "id": 257,
+            "title": "scale",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 257,
+              "title": "scale",
+              "connecttionType": 0
+            }
+          ],
+          "description": "SuperScaler",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Super Scaler",
+        "targetPath": ""
+      },
+      "locationX": 700,
+      "locationY": 300
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022SuperScaleAI - powieksz zdjecia modelem AI (Real-ESRGAN).\n\nZdjecia wskazuja bloki File content (jeden blok = jedno zdjecie; dodaj\nkolejne bloki, zeby przetworzyc kilka). Wynik trafia do\nOutputs/\u003Cnazwa\u003E_x\u003Cmnoznik\u003E.png i jest pokazywany w zakladce Output.\n\nUSTAWIENIA: Inspector tego bloku -\u003E sekcja INITIALISER -\u003E Refresh. Pojawia sie\nparametry __init__ ponizej; zmien wartosci i kliknij Apply.\n\n  scale_factor      1-10, moze byc ulamkowy: 1 = ta sama rozdzielczosc\n                    (tylko lepsza jakosc), 2 = 2x wiecej pikseli, 10 = 10x\n  factor_mode       \u0022pixels\u0022 - mnoznik liczby pikseli (2 -\u003E bok x1.41)\n                    \u0022side\u0022   - mnoznik boku (2 -\u003E bok x2, 4x wiecej pikseli)\n  output_extension  \u0022.png\u0022 (bez strat) albo \u0022.jpg\u0022\n  jpeg_quality      jakosc dla \u0022.jpg\u0022, 1-100\n  tile_size         bok kafelka sieci; wiekszy = szybciej na GPU, wiecej pamieci\n  tile_overlap      zakladka kafelkow (bez widocznych szwow)\n  outputs_folder    folder wynikow obok projektu\n\nModel pobiera sie sam przy pierwszym uruchomieniu (~64 MB, do models/):\nReal-ESRGAN x2plus do mnoznika 4, x4plus powyzej.\n\u0022\u0022\u0022\n\nfrom ImageFiles import ImageFiles\nfrom ModelDownloader import ModelDownloader\nfrom PhotoPicker import PhotoPicker\nfrom SuperScaleConfig import SuperScaleConfig\nfrom SuperScaler import SuperScaler\n\n\nclass SuperScaleApp:\n\tdef __init__(self, scale_factor: float=10.0, factor_mode: str=\u0022pixels\u0022, output_extension: str=\u0022.png\u0022, jpeg_quality: int=95, tile_size: int=256, tile_overlap: int=16, outputs_folder: str=\u0022Outputs\u0022):\n\t\tself.config = SuperScaleConfig(\n\t\t\tscale_factor=float(scale_factor),\n\t\t\tfactor_mode=factor_mode,\n\t\t\toutput_extension=output_extension,\n\t\t\tjpeg_quality=int(jpeg_quality),\n\t\t\ttile_size=int(tile_size),\n\t\t\ttile_overlap=int(tile_overlap),\n\t\t\toutputs_folder=outputs_folder,\n\t\t).ensure_dirs()\n\n\tdef run(self) -\u003E None:\n\t\tconfig = self.config\n\t\tprint(\u0022=\u0022 * 72)\n\t\tprint(\u0022SUPERSCALE AI  (Real-ESRGAN)\u0022)\n\t\tprint(\u0022=\u0022 * 72)\n\t\tprint(\u0022[Ustawienia] mnoznik %g (%s), wynik %s\u0022 % (config.scale_factor,\n\t\t\t\u0022pikseli\u0022 if config.factor_mode == \u0022pixels\u0022 else \u0022boku\u0022, config.output_extension))\n\n\t\tphotos = PhotoPicker(config).picked_photos()\n\t\tif not photos:\n\t\t\tprint(\u0022[Zdjecia] Zaden blok File content nie wskazuje istniejacego zdjecia - wybierz plik w bloku \u0027Zdjecie\u0027.\u0022)\n\t\t\treturn\n\n\t\tscaler = SuperScaler(config, ModelDownloader(config))\n\t\tfiles = ImageFiles(config.jpeg_quality)\n\n\t\tsaved = []\n\t\tfor number, photo in enumerate(photos, 1):\n\t\t\tprint(\u0022\u0022)\n\t\t\tprint(\u0022[%d/%d] %s\u0022 % (number, len(photos), photo.name))\n\t\t\ttry:\n\t\t\t\timage = files.read(photo)\n\t\t\texcept ValueError as error:\n\t\t\t\tprint(\u0022[Pominiete] %s\u0022 % error)\n\t\t\t\tcontinue\n\n\t\t\tresult, plan = scaler.scale(image, config.scale_factor)\n\t\t\ttarget = config.outputs_dir / (\u0022%s_x%g%s\u0022 % (photo.stem, config.scale_factor, config.output_extension))\n\t\t\tfiles.write(result, target)\n\t\t\tprint(\u0022[Wynik] -\u003E %s  (%dx%d)\u0022 % (target, plan.target_width, plan.target_height))\n\t\t\tsaved.append(target)\n\n\t\t\tfiles.show(\u0022%s (%dx%d)\u0022 % (target.name, plan.target_width, plan.target_height), result)\n\t\t\tfiles.compare_detail(\u0022%s - detal 1:1: zwykle powiekszenie | AI\u0022 % photo.name, image, result)\n\n\t\tprint(\u0022\u0022)\n\t\tprint(\u0022Zapisano %d z %d zdjec w %s\u0022 % (len(saved), len(photos), config.outputs_dir))\n\n\ndef main():\n\tSuperScaleApp().run()\n\n\nif __name__ == \u0022__main__\u0022:\n\tmain()\n",
+        "codeFile": "",
+        "maxInputNumber": 5,
+        "maxOutputNumber": 0,
+        "documentationText": "",
+        "documentationFile": "main_superscale.md",
+        "nodeCathegory": 3,
+        "id": 197,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 5,
+          "outputNumber": 0,
+          "inputParametersEditorEnabled": true,
+          "outputParametersEditorEnabled": false,
+          "selectedInputConnectionSettings": {
+            "id": 258,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [
+            {
+              "id": 258,
+              "title": "config",
+              "connecttionType": 0
+            },
+            {
+              "id": 259,
+              "title": "scale",
+              "connecttionType": 0
+            },
+            {
+              "id": 260,
+              "title": "read",
+              "connecttionType": 0
+            },
+            {
+              "id": 261,
+              "title": "picked_photos",
+              "connecttionType": 0
+            },
+            {
+              "id": 262,
+              "title": "photo",
+              "connecttionType": 0
+            }
+          ],
+          "selectedOutputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [],
+          "description": "main_superscale",
+          "isMain": true,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "SuperScale AI (main)",
+        "targetPath": ""
+      },
+      "locationX": 1020,
+      "locationY": 404
+    },
+    {
+      "nodeData": {
+        "codeText": "C:\\Users\\Adam\\Documents\\CatNip Workspace\\SuperScaleAI\\Inputs\\t3_color.jpg",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "Zdj\u0119cie.md",
+        "nodeCathegory": 1,
+        "id": 198,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 263,
+            "title": "photo",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 263,
+              "title": "photo",
+              "connecttionType": 0
+            }
+          ],
+          "description": "Zdj\u0119cie",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 1,
+        "title": "Zdj\u0119cie",
+        "targetPath": ""
+      },
+      "locationX": 700,
+      "locationY": 621
+    },
+    {
+      "nodeData": {
+        "codeText": "\u0022\u0022\u0022The photos picked in the project\u0027s File content blocks.\n\nCatNip writes a File content block\u0027s path into main only on Generate\nBlueprint, so the picks are read straight out of SuperScaleAI.catnip (plain\nJSON): every File content node (nodeCategory 1) holds its path in codeText.\nOne block is one photo - add more File content blocks to scale several.\n\nIn a Docker run the Windows path does not exist - the container sees /app,\nnot C: - so the file is then looked up by name next to the project and in\nInputs/ (where \u0022Copy to source\u0022 or a manual copy puts it).\n\u0022\u0022\u0022\n\nimport json\nfrom pathlib import Path\nfrom typing import List, Optional\n\nfrom SuperScaleConfig import SuperScaleConfig\n\n\nclass PhotoPicker:\n\tFILE_CONTENT = 1\n\n\tdef __init__(self, config: SuperScaleConfig):\n\t\tself.config = config\n\n\tdef picked_photos(self) -\u003E List[Path]:\n\t\tphotos = []\n\t\tfor picked in self.paths_from_blocks():\n\t\t\tfound = self.resolve(picked)\n\t\t\tif found is None:\n\t\t\t\tprint(\u0022[Zdjecia] Nie znaleziono: %s\u0022 % picked)\n\t\t\telif not self.config.is_image(found):\n\t\t\t\tprint(\u0022[Zdjecia] To nie jest obraz, pomijam: %s\u0022 % found)\n\t\t\telif found not in photos:\n\t\t\t\tphotos.append(found)\n\t\treturn photos\n\n\tdef paths_from_blocks(self) -\u003E List[str]:\n\t\tproject = self.find_project()\n\t\tif project is None:\n\t\t\treturn []\n\t\ttry:\n\t\t\tdata = json.loads(project.read_text(encoding=\u0022utf-8-sig\u0022))\n\t\texcept (OSError, ValueError):\n\t\t\treturn []\n\t\tnodes = [n.get(\u0022nodeData\u0022, {}) for n in data.get(\u0022nodes\u0022, [])]\n\t\tnodes = [n for n in nodes if n.get(\u0022nodeCategory\u0022, n.get(\u0022nodeCathegory\u0022)) == self.FILE_CONTENT]\n\t\tpaths = [(n.get(\u0022codeText\u0022) or \u0022\u0022).strip().strip(\u0027\u0022\u0027) for n in sorted(nodes, key=lambda n: n.get(\u0022id\u0022, 0))]\n\t\treturn [p for p in paths if p]\n\n\tdef resolve(self, picked: str) -\u003E Optional[Path]:\n\t\tpath = Path(picked)\n\t\tif path.is_file():\n\t\t\treturn path\n\t\tname = picked.replace(\u0022\\\\\u0022, \u0022/\u0022).rsplit(\u0022/\u0022, 1)[-1]\n\t\tfor folder in (self.config.project_dir, self.config.inputs_dir):\n\t\t\tcandidate = folder / name\n\t\t\tif candidate.is_file():\n\t\t\t\tprint(\u0022[Zdjecia] %s nie istnieje tutaj - uzywam %s\u0022 % (picked, candidate))\n\t\t\t\treturn candidate\n\t\treturn None\n\n\tdef find_project(self) -\u003E Optional[Path]:\n\t\tprojects = sorted(self.config.project_dir.glob(\u0022*.catnip\u0022))\n\t\treturn projects[0] if projects else None\n",
+        "codeFile": "",
+        "maxInputNumber": 1,
+        "maxOutputNumber": 1,
+        "documentationText": "",
+        "documentationFile": "PhotoPicker.md",
+        "nodeCathegory": 3,
+        "id": 199,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 1,
+          "outputNumber": 1,
+          "inputParametersEditorEnabled": true,
+          "outputParametersEditorEnabled": true,
+          "selectedInputConnectionSettings": {
+            "id": 264,
+            "title": "config",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [
+            {
+              "id": 264,
+              "title": "config",
+              "connecttionType": 0
+            }
+          ],
+          "selectedOutputConnectionSettings": {
+            "id": 265,
+            "title": "picked_photos",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [
+            {
+              "id": 265,
+              "title": "picked_photos",
+              "connecttionType": 0
+            }
+          ],
+          "description": "PhotoPicker",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "Python",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 3,
+        "title": "Photo Picker",
+        "targetPath": ""
+      },
+      "locationX": 380,
+      "locationY": 600
+    },
+    {
+      "nodeData": {
+        "codeText": "",
+        "codeFile": "",
+        "maxInputNumber": 0,
+        "maxOutputNumber": 0,
+        "documentationText": "",
+        "documentationFile": "README.md",
+        "nodeCathegory": 30,
+        "id": 200,
+        "settings": {
+          "objectifable": false,
+          "canBeMain": false,
+          "inputNumber": 0,
+          "outputNumber": 0,
+          "inputParametersEditorEnabled": false,
+          "outputParametersEditorEnabled": false,
+          "selectedInputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "inputConnectionSettings": [],
+          "selectedOutputConnectionSettings": {
+            "id": 0,
+            "title": "",
+            "connecttionType": 0
+          },
+          "outputConnectionSettings": [],
+          "description": "README",
+          "isMain": false,
+          "inObjectiveManner": false,
+          "shellType": "Local Shell (system Python)",
+          "sqlScriptType": "MSSQL",
+          "connectionString": "",
+          "inputConstructorRouting": {},
+          "setterMethodNames": {},
+          "outputInputDependencies": {},
+          "disabledInputs": [],
+          "aggregatePrevious": false,
+          "badgeText": "",
+          "badgeColor": "",
+          "fileFormat": "",
+          "reportDefinition": "",
+          "dataSchema": "",
+          "interactiveReport": "",
+          "nativeBuildTarget": "",
+          "runCompiled": false,
+          "sourceFolder": "",
+          "mappedFrom": ""
+        },
+        "nodeCategory": 30,
+        "title": "README",
+        "targetPath": ""
+      },
+      "locationX": -400,
+      "locationY": -200
+    }
+  ],
+  "connections": [
+    {
+      "sourceNodeId": 191,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 194,
+      "targetConnectorIndex": 0,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 191,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 195,
+      "targetConnectorIndex": 0,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 191,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 196,
+      "targetConnectorIndex": 0,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 194,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 196,
+      "targetConnectorIndex": 1,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 195,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 196,
+      "targetConnectorIndex": 2,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 192,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 196,
+      "targetConnectorIndex": 3,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 191,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 197,
+      "targetConnectorIndex": 0,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 196,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 197,
+      "targetConnectorIndex": 1,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 193,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 197,
+      "targetConnectorIndex": 2,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 191,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 199,
+      "targetConnectorIndex": 0,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 199,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 197,
+      "targetConnectorIndex": 3,
+      "isChosen": false
+    },
+    {
+      "sourceNodeId": 198,
+      "sourceConnectorIndex": 0,
+      "targetNodeId": 197,
+      "targetConnectorIndex": 4,
+      "isChosen": false
+    }
+  ],
+  "projectType": 0,
+  "preRunCommands": [],
+  "noRedundantCode": false,
+  "engineSettings": [
+    {
+      "name": "main_1",
+      "filePath": "C:\\Users\\Adam\\Documents\\CatNip Workspace\\SuperScaleAI\\main_1.py",
+      "isSelected": true,
+      "environmentId": "python:3.11-slim",
+      "runMode": "Code Run",
+      "timeoutSeconds": 7200,
+      "memoryLimitMb": 8192,
+      "installMode": "Manual",
+      "manualPackages": "torch torchvision spandrel numpy opencv-python-headless",
+      "dockerImage": "",
+      "newDockerImageName": "",
+      "showImageParametersOnRun": false,
+      "runInstance": ""
+    }
+  ]
+}
